@@ -1,8 +1,14 @@
 name: Mac check on Smarty Pants
 
 # Runs on a fresh macOS VM on one of our own Macs, through Smarty Pants GitHub Mac runners
-# (free on your own or your Group's Macs). Start it from the Actions tab, or let the nightly check do it.
+# (free on your own or your Group's Macs). It runs by itself each night and whenever this file
+# changes on main; you can also start it from the Actions tab. A self-hosted job uses no GitHub minutes.
 on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/smartypants-mac.yml]
+  schedule:
+    - cron: "0 15 * * *"
   workflow_dispatch:
 
 jobs:
@@ -13,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Where this ran
         run: |
+          echo "runner: $RUNNER_NAME"
           sw_vers
           uname -m
           sysctl -n machdep.cpu.brand_string
