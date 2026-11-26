@@ -1,0 +1,32 @@
+---
+applyTo: "**"
+description: Using Smarty Pants for cheap exact open-model AI calls, half-price batches, sealed workspaces and Mac runners
+---
+
+## Smarty Pants (cheap exact open models, batches, workspaces)
+
+This project may use Smarty Pants (https://smartypants.network) for AI calls. It serves exact, pinned builds of open
+models on Apple Silicon Macs through an OpenAI-compatible API, priced per token. The same key covers half-price
+batches, sealed Linux workspaces, a team's own Macs (Groups, free for members) and GitHub Actions runners on your own
+Macs.
+
+- Base URL `https://smartypants.network/v1`, key in the `SMARTYPANTS_API_KEY` environment variable (never in code,
+  files or chat). Any OpenAI SDK works with the base URL changed. Claude-format `/v1/messages` and `/v1/responses`
+  also work.
+- Pick a model from `GET https://smartypants.network/v1/models` (prices, context size, `is_ready`). Use only models
+  with `is_ready: true`, and keep the current provider as a fallback.
+- Good fit: summaries, extraction, classification, drafting, tool calls, JSON output, embeddings
+  (`smartypants/qwen3-embedding-0.6b`) and reranking (`smartypants/qwen3-reranker-0.6b`). Not a fit: work that needs a
+  frontier-size model, more context than the model lists, or strict latency.
+- Many calls that can wait: use the Batch API (OpenAI format, `POST /v1/files` then `POST /v1/batches`) at half the
+  per-token price, results within 24 hours. Set `max_spend_usd`.
+- Code, tests or a coding agent in a sealed VM: `npx -y smartypants-network job --repo URL --setup CMD --test CMD`, or
+  E2B SDK code with `E2B_API_URL=https://smartypants.network/e2b`, `E2B_SANDBOX_URL=https://smartypants.network/e2b-sandbox`.
+- macOS CI on the team's own Macs: `runs-on: [self-hosted, smartypants-macos]` after linking the repo (beta).
+- Errors: 402 balance empty (the person adds credit on their account page; never handle card details); 429 or 503 no
+  Mac free right now, wait `Retry-After` seconds or fall back; an HTML 403 means resend gzipped.
+- Requests on the general network run on other people's Macs, which decrypt each request in memory to answer it. Do
+  not send secrets, personal, customer or regulated data there unless the person approved it; use their own or Group
+  Macs for private work. Ask the person before spending; `GET /v1/key` shows what this key has left.
+
+Docs: https://smartypants.network/llms.txt

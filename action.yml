@@ -54,13 +54,20 @@ runs:
         IN_SUMMARY: ${{ inputs.summary }}
       run: |
         set -euo pipefail
+        if [ -z "$SMARTYPANTS_API_KEY" ]; then
+          echo "::error::No api-key. Add a repository secret SMARTYPANTS_API_KEY (create a key at https://smartypants.network/api) and pass it as api-key."
+          exit 1
+        fi
         text="$IN_PROMPT"
         if [ -n "$IN_CMD" ]; then text="$text"$'\n\n'"$(bash -c "$IN_CMD")"; fi
         args=(ask - --max-tokens "$IN_MAX")
         [ -n "$IN_SYSTEM" ] && args+=(--system "$IN_SYSTEM")
         [ -n "$IN_MODEL" ] && args+=(--model "$IN_MODEL")
-        answer="$(printf '%s' "$text" | npx -y smartypants-network@latest "${args[@]}")"
+        # A regular file on stdin, not a pipe: npx hands a pipe over non-blocking, and the CLI's read then fails with EAGAIN.
+        prompt_file="$(mktemp)"; printf '%s' "$text" > "$prompt_file"
+        answer="$(npx -y smartypants-network@latest "${args[@]}" < "$prompt_file")"
+        rm -f "$prompt_file"
         delim="SP_$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')"
         { echo "answer<<$delim"; echo "$answer"; echo "$delim"; } >> "$GITHUB_OUTPUT"
-        if [ "$IN_SUMMARY" = "true" ]; then { echo "### Smarty Pants"; echo; echo "$answer"; } >> "$GITHUB_STEP_SUMMARY"; fi
+        if [ "$IN_SUMMARY" = "true" ]; then { echo "### Smarty Pants"; echo; echo "$answer"; echo; echo "<sub>Answered by an open model on [Smarty Pants](https://smartypants.network/docs/agents)${IN_MODEL:+ (\`$IN_MODEL\`)}.</sub>"; } >> "$GITHUB_STEP_SUMMARY"; fi
         echo "$answer"

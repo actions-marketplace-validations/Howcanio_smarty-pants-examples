@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "smartypants": {
+      "type": "http",
+      "url": "https://smartypants.network/mcp"
+    },
+    "smartypants-account": {
+      "type": "http",
+      "url": "https://smartypants.network/mcp/account"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+# Codex (~/.codex/config.toml): Smarty Pants as a model provider and MCP server.
+# Uses SMARTYPANTS_API_KEY from your environment. Docs: https://smartypants.network/docs/agents
+
+# Optional: run Codex itself on a Smarty Pants model (an open model; keep your usual one for hard work).
+[model_providers.smartypants]
+name = "Smarty Pants"
+base_url = "https://smartypants.network/v1"
+env_key = "SMARTYPANTS_API_KEY"
+
+[profiles.smartypants]
+model_provider = "smartypants"
+model = "smartypants/qwen3.8-27b"
+# Then: codex --profile smartypants
+
+# Models, prices, cost estimates and model search, no sign-in needed.
+[mcp_servers.smartypants]
+url = "https://smartypants.network/mcp"

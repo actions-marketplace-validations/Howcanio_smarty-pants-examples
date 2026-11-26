@@ -1,0 +1,30 @@
+name: Check
+
+# Copies match their sources, action files parse, and the Claude Code plugin and marketplace validate.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copies match their sources
+        run: bash scripts/sync-copies.sh --check
+      - name: Action and workflow files parse
+        run: |
+          for f in action.yml job/action.yml mac-runners/action.yml .github/workflows/*.yml; do
+            python3 -c "import sys, yaml; yaml.safe_load(open(sys.argv[1]))" "$f" && echo "ok $f"
+          done
+      - name: JSON files parse
+        run: for f in .claude-plugin/marketplace.json plugins/smartypants/.claude-plugin/plugin.json plugins/smartypants/.mcp.json; do jq -e . "$f" >/dev/null && echo "ok $f"; done
+      - name: Claude Code plugin and marketplace validate
+        run: |
+          npx -y @anthropic-ai/claude-code@latest plugin validate .
+          npx -y @anthropic-ai/claude-code@latest plugin validate plugins/smartypants

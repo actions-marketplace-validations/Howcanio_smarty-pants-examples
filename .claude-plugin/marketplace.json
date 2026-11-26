@@ -1,0 +1,18 @@
+{
+  "name": "smarty-pants",
+  "owner": { "name": "Howcan (Smarty Pants)", "email": "info@howcan.io" },
+  "metadata": {
+    "description": "Smarty Pants for Claude Code: exact open models priced per token, half-price batches, sealed Linux workspaces and GitHub Actions runners on your own Macs, all under one key.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "smartypants",
+      "source": "./plugins/smartypants",
+      "description": "Cheap exact open models (OpenAI-compatible), half-price batches, sealed workspaces, Group Macs and Mac runners, through one Smarty Pants key. MCP servers plus skills that tell Claude when each one fits.",
+      "category": "development",
+      "homepage": "https://smartypants.network/docs/agents",
+      "keywords": ["open-models", "openai-compatible", "batch", "sandbox", "workspaces", "apple-silicon", "github-actions", "mac-runners", "mcp"]
+    }
+  ]
+}

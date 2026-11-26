@@ -1,11 +1,29 @@
 # Smarty Pants examples
 
-Copy-paste examples for [Smarty Pants](https://smartypants.network): exact, pinned builds of open models
-served on Apple Silicon Macs through an **OpenAI-compatible API**, priced per token.
+Copy-paste examples, agent plugins and GitHub Actions for [Smarty Pants](https://smartypants.network): one account
+for what an agent needs.
 
-- Base URL: `https://smartypants.network/v1`
-- Key: `Authorization: Bearer $SMARTYPANTS_API_KEY` (sign up with an email at https://smartypants.network/api)
-- Models, prices, context sizes and `is_ready`: `GET https://smartypants.network/v1/models`
+- **Models:** exact, pinned builds of open models on Apple Silicon Macs through an **OpenAI-compatible API**, priced per token.
+- **Batches:** work that can wait runs at **half the per-token price**, results within 24 hours.
+- **Workspaces:** sealed Linux VMs for agents, code runs and whole test jobs (works with E2B SDK code).
+- **Groups:** your team's own Macs, **free for members** for all of the above.
+- **Mac runners (beta):** GitHub Actions jobs in fresh macOS VMs on your own Macs, no GitHub minutes used.
+
+Base URL `https://smartypants.network/v1`, key `Authorization: Bearer $SMARTYPANTS_API_KEY` (sign up with an email at
+https://smartypants.network/api; new accounts get $10 of credit). Models, prices, context sizes and `is_ready`:
+`GET https://smartypants.network/v1/models`.
+
+## Install for your agent
+
+| Agent | How |
+|---|---|
+| **Claude Code** (plugin: MCP servers, 5 skills, `/smartypants:setup` and `/smartypants:cost`) | `/plugin install smartypants --marketplace howcanio/smarty-pants-examples` (older versions: `/plugin marketplace add Howcanio/smarty-pants-examples`, then `/plugin install smartypants@smarty-pants`) |
+| **Codex** | [rules/codex/config.toml](rules/codex/config.toml) to `~/.codex/config.toml`, [rules/codex/AGENTS.md](rules/codex/AGENTS.md) into your `AGENTS.md`, skills from [rules/agents-skills/](rules/agents-skills/) |
+| **Cursor** | [rules/cursor/.cursor/rules/smartypants.mdc](rules/cursor/.cursor/rules/smartypants.mdc) to `.cursor/rules/` |
+| **GitHub Copilot** | [rules/copilot/.github/instructions/](rules/copilot/.github/instructions/smartypants.instructions.md) to `.github/instructions/` |
+| Any MCP client | `https://smartypants.network/mcp` (no sign-in) and `https://smartypants.network/mcp/account` (signed in) |
+
+All of them say the same thing, including when **not** to use Smarty Pants. See [rules/](rules/).
 
 ## When to use it
 
@@ -32,7 +50,8 @@ served on Apple Silicon Macs through an **OpenAI-compatible API**, priced per to
 | OpenAI SDK (JavaScript) | [javascript/openai_sdk.mjs](javascript/openai_sdk.mjs) |
 | Vercel AI SDK | [javascript/vercel_ai_sdk.mjs](javascript/vercel_ai_sdk.mjs) |
 | curl | [curl/chat.sh](curl/chat.sh) |
-| Claude Code skill | [claude-code/skills/smartypants/SKILL.md](claude-code/skills/smartypants/SKILL.md) |
+| Claude Code plugin | [plugins/smartypants/](plugins/smartypants/) |
+| Skills (Agent Skills format) | [rules/agents-skills/](rules/agents-skills/): models, batches, workspaces, Groups, Mac runners |
 
 ## MCP server
 
@@ -45,9 +64,9 @@ claude mcp add --transport http smartypants-account https://smartypants.network/
 
 Listed in the official MCP Registry as `network.smartypants/smartypants`.
 
-## GitHub Action
+## GitHub Actions
 
-Run a prompt in any workflow, for example a review of each pull request's diff
+**Run a prompt** in any workflow, for example a review of each pull request's diff
 ([example workflow](.github/workflows/review-diff.yml)):
 
 ```yaml
@@ -60,8 +79,25 @@ Run a prompt in any workflow, for example a review of each pull request's diff
     system: Review this diff in 5 bullets
 ```
 
-[`job/`](job/action.yml) runs a whole job (code, setup, tests, files back) in a sealed Linux workspace on a Mac.
-Whole jobs are open to our own account first; other keys get a clear refusal until they open.
+**Run a whole job** (code, setup, tests, files back) in a sealed Linux workspace on a Mac with
+[`job/`](job/action.yml). Whole jobs are open to our own account first; other keys get a clear refusal until they open.
+
+**Mac runners on your own Macs (beta).** Link the repository once with [`mac-runners/`](mac-runners/action.yml), then
+any job with `runs-on: [self-hosted, smartypants-macos]` runs in a fresh macOS VM on your own Macs (or your Group's),
+free there. Each VM runs one job and is thrown away ([example](.github/workflows/smartypants-mac.yml)).
+
+```yaml
+# .github/workflows/link-mac-runners.yml, run once from the Actions tab
+on: workflow_dispatch
+jobs:
+  link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: Howcanio/smarty-pants-examples/mac-runners@v1
+        with:
+          api-key: ${{ secrets.SMARTYPANTS_API_KEY }}
+          github-token: ${{ secrets.SMARTYPANTS_RUNNER_TOKEN }}   # fine-grained: Administration + Webhooks, read and write
+```
 
 ## Command line and packages
 

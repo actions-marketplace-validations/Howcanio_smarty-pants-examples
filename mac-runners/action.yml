@@ -1,0 +1,102 @@
+# Smarty Pants Mac runners (beta): link this repository so jobs with `runs-on: [self-hosted, smartypants-macos]`
+# run in a fresh macOS VM on your own Macs (or your Group's), free there and with no GitHub minutes used.
+# Each VM runs one job and is thrown away. Run this once, by hand, from a small workflow:
+#
+#   on: workflow_dispatch
+#   jobs:
+#     link:
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: Howcanio/smarty-pants-examples/mac-runners@v1
+#           with:
+#             api-key: ${{ secrets.SMARTYPANTS_API_KEY }}
+#             github-token: ${{ secrets.SMARTYPANTS_RUNNER_TOKEN }}
+#
+# SMARTYPANTS_RUNNER_TOKEN is a fine-grained GitHub token for this repository with Administration: read and write
+# (runners) and Webhooks: read and write (so the site adds its webhook). The default GITHUB_TOKEN can't manage runners.
+# The token is kept encrypted on Smarty Pants and never goes to a Mac. Docs: https://smartypants.network/docs/agents
+name: Smarty Pants Mac runners
+description: "Link a repository to Smarty Pants so `runs-on: smartypants-macos` jobs run in fresh macOS VMs on your own Macs (beta)."
+author: Howcan (Smarty Pants)
+branding:
+  icon: monitor
+  color: green
+inputs:
+  api-key:
+    description: A Smarty Pants API key from an account that owns a Mac or is in a Group (keep it in a secret). https://smartypants.network/api
+    required: true
+  github-token:
+    description: A fine-grained GitHub token for the repository with Administration (and Webhooks) read and write.
+    required: true
+  repository:
+    description: owner/name to link. Defaults to this repository.
+    default: ""
+  where:
+    description: "'mine' for your own Macs, or a Group id to use that Group's Macs."
+    default: mine
+  minutes:
+    description: Longest a job may run on a Mac, in minutes (up to 120).
+    default: "60"
+  unlink:
+    description: "true removes the link (and its webhook) instead."
+    default: "false"
+outputs:
+  link-id:
+    description: The Smarty Pants id of the link.
+    value: ${{ steps.link.outputs.id }}
+runs:
+  using: composite
+  steps:
+    - id: link
+      shell: bash
+      env:
+        SP_KEY: ${{ inputs.api-key }}
+        GH_RUNNER_TOKEN: ${{ inputs.github-token }}
+        IN_REPO: ${{ inputs.repository || github.repository }}
+        IN_WHERE: ${{ inputs.where }}
+        IN_MINUTES: ${{ inputs.minutes }}
+        IN_UNLINK: ${{ inputs.unlink }}
+        SP_BASE: https://smartypants.network
+      run: |
+        set -euo pipefail
+        auth=(-H "Authorization: Bearer $SP_KEY" -H "User-Agent: smartypants-mac-runners-action/1")
+        links="$(curl -fsS "${auth[@]}" "$SP_BASE/v1/github-runners")"
+        existing="$(printf '%s' "$links" | jq -r --arg r "$IN_REPO" '.links[] | select(.repo == $r) | .id' | head -n1)"
+        if [ "$IN_UNLINK" = "true" ]; then
+          if [ -z "$existing" ]; then echo "$IN_REPO is not linked."; exit 0; fi
+          curl -fsS -X DELETE "${auth[@]}" "$SP_BASE/v1/github-runners/$existing" >/dev/null
+          echo "Unlinked $IN_REPO."; { echo "### Smarty Pants Mac runners"; echo; echo "Unlinked \`$IN_REPO\`."; } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        if [ -n "$existing" ]; then
+          echo "$IN_REPO is already linked ($existing)."; echo "id=$existing" >> "$GITHUB_OUTPUT"
+        else
+          if [ "$IN_WHERE" = "mine" ]; then where='"mine"'; else where="$(jq -cn --arg g "$IN_WHERE" '{group: $g}')"; fi
+          body="$(jq -cn --arg repo "$IN_REPO" --arg token "$GH_RUNNER_TOKEN" --argjson where "$where" --argjson minutes "$IN_MINUTES" \
+            '{repo: $repo, token: $token, where: $where, minutes: $minutes}')"
+          status=0; answer="$(curl -sS -w '\n%{http_code}' "${auth[@]}" -H "Content-Type: application/json" -d "$body" "$SP_BASE/v1/github-runners")" || status=$?
+          code="$(printf '%s' "$answer" | tail -n1)"; answer="$(printf '%s' "$answer" | sed '$d')"
+          if [ "$status" != 0 ] || [ "${code:0:1}" != "2" ]; then
+            echo "::error::Linking failed (HTTP $code): $(printf '%s' "$answer" | jq -r '.error.message // .error // .' 2>/dev/null || printf '%s' "$answer")"
+            echo "Check: the key's account owns a Mac or is in the Group, and the token has Administration: read and write on $IN_REPO."
+            exit 1
+          fi
+          id="$(printf '%s' "$answer" | jq -r '.id')"; echo "id=$id" >> "$GITHUB_OUTPUT"
+          created="$(printf '%s' "$answer" | jq -r '.webhook.created')"
+          if [ "$created" != "true" ]; then
+            echo "::error::Linked, but the token can't add the webhook GitHub uses to tell us about queued jobs. Give the token Webhooks: read and write, then run this again with unlink: true and once more without it."
+            exit 1
+          fi
+          echo "Linked $IN_REPO ($id)."
+        fi
+        {
+          echo "### Smarty Pants Mac runners"
+          echo
+          echo "\`$IN_REPO\` is linked. Jobs with this \`runs-on\` now run in a fresh macOS VM on your own Macs:"
+          echo
+          echo '```yaml'
+          echo 'runs-on: [self-hosted, smartypants-macos]'
+          echo '```'
+          echo
+          echo "Made with [Smarty Pants](https://smartypants.network/docs/agents). Beta: keep \`macos-latest\` as a fallback."
+        } >> "$GITHUB_STEP_SUMMARY"
